@@ -2,6 +2,11 @@ args = commandArgs(trailingOnly=TRUE)
 ### optimization part ###
 grad_prep <- function(X, Y){
 	## pre-calculate some metrics for gradient
+	## args
+	## X: a list of covariate matrices corresponding to each response
+	## Y: a list of response vectors
+	## value
+	## XY: a list of matrices X^TY for each response
 	ll = length(Y)
 	P = ncol(X[[1]])
 	XY = matrix(0,P,ll)
@@ -12,6 +17,13 @@ grad_prep <- function(X, Y){
 }
 
 cv_helper <- function(N, fold){
+	## helper function for generating cross-validation sets
+	## args
+	## N: number of sample size
+	## fold: number of folds
+	## values
+	## perm: a permutation of 1 to N
+	## idx: matrix of fold by 2 with first col being starting index and second col being ending index
 	valid_num = floor(N/fold)
 	set.seed(123)
 	perm = sample(1:N, size = N)
