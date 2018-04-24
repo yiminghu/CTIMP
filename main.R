@@ -33,6 +33,12 @@ cv_helper <- function(N, fold){
 }
 
 minmax_lambda <- function(lst){
+	## get the minimum and maximum of lambda searched in cross-validation of an elastic net model
+	## args
+	## lst: an object returned by glmnet
+	## value
+	## min_lam: smallest lambda searched in glmnet cross-validation
+	## max_lam: largest lambda searched in glmnet cross-validation
 	max_lam = max(unlist(lapply(lst, function(x){max(x$lambda)})))
 	min_lam = min(unlist(lapply(lst, function(x){min(x$lambda)})))
 	c(min_lam, max_lam)
