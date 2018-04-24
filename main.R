@@ -45,6 +45,17 @@ minmax_lambda <- function(lst){
 }
 
 elastic_net_mse <- function(lst, X_tune, Y_tune, X_test, Y_test){
+	## evaluate the performance of elastic net on each response
+	## args
+	## lst: a list of glmnet object (fitted elastic net model for each response)
+	## X_tune: a list of covariate matrices corresponding for each response (for tuning lambda)
+	## Y_tune: a list of response vectors (for tuning lambda)
+	## X_test: a list of covariate matrices corresponding for each response (for testing performance)
+	## Y_test: a list of response vectors (for testing performance)
+	## value
+	## lam: best performing lambda (on (X_tune,Y_tune)) for each response
+	## mse: list of matrices with each element being a matrix of predicted vs observed response
+	## est: estimated effect sizes for each response (B matrix)
 	P = length(lst)
 	M = ncol(X_tune[[1]])
 	lam_V = rep(0, P)
