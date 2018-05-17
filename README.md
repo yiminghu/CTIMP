@@ -22,7 +22,7 @@ X: covariate matrix with each row being an observation and each column being a v
 
 Y_1, Y_2, ..., Y_P: response vectors, each file contains two columns: ID and response values. Due to the missingness in reponse matrix, each file may have different number of rows (number of observations).
 
-info: files contain column infomation of X, see examples/ for details
+info: files contain column infomation of X, see example/ for details
 
 ### Usage
 ```bash
