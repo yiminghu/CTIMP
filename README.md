@@ -1,2 +1,2 @@
 # PERM
-PEnalized multivariate Response regression with Missingness in response matrix
+PEnalized multivariate Response regression with Missingness In response maTrix
