@@ -191,43 +191,54 @@ glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, thet
 }
 
 ### command line input ###
-chr = as.numeric(args[1]); k = as.numeric(args[2])
-gene_id = args[3]
-ntune = as.numeric(args[4])
-outdir = args[5]
+#chr = as.numeric(args[1]); k = as.numeric(args[2])
+#gene_id = args[3]
+#ntune = as.numeric(args[4])
+#outdir = args[5]
 ### data import ###
 options(stringsAsFactors=F)
 library(glmnet)
 library(foreach)
 #ntune = 100
-glist = dir(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/cis_snp_by_gene/chr", chr));
-g = glist[k];
-dose_path = paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/cis_snp_by_gene/chr", chr, "/", g, "/", g, ".mach.dose")
-info_path = paste0("/ysm-gpfs/pi/zhao/from_louise/jw2372/GTEX/cis_snp_by_gene/chr", chr, "/", g, "/", g, ".mach.info")
-Yt = dir(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/adjusted_expr1/chr", chr, "/", g, "/"))
+#glist = dir(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/cis_snp_by_gene/chr", chr));
+#g = glist[k];
+dose_path = args[1]
+info_path = args[2]
+Yt_path=args[3]
+Yt = dir(args[3])
+ntune = as.numeric(args[4])
+gene_id = args[5]
+outdir = args[6]
+#dose_path = paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/cis_snp_by_gene/chr", chr, "/", g, "/", g, ".mach.dose")
+#info_path = paste0("/ysm-gpfs/pi/zhao/from_louise/jw2372/GTEX/cis_snp_by_gene/chr", chr, "/", g, "/", g, ".mach.info")
+#Yt = dir(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/adjusted_expr1/chr", chr, "/", g, "/"))
 P = length(Yt)
 fold = 5
 if(P){
-	dir.create(paste0(outdir, "/chr", chr), showWarnings = FALSE)
-	dir.create(paste0(outdir, "/chr", chr, "/", gene_id), showWarnings = FALSE)
-	setwd(paste0(outdir, "/chr", chr, "/", gene_id))
+	dir.create(outdir, showWarnings = FALSE)
+#	dir.create(paste0(outdir, "/", gene_id), showWarnings = FALSE)
+	setwd(outdir)
+#	dir.create(paste0(outdir, "/chr", chr), showWarnings = FALSE)
+#	dir.create(paste0(outdir, "/chr", chr, "/", gene_id), showWarnings = FALSE)
+#	setwd(paste0(outdir, "/chr", chr, "/", gene_id))
 	## expr files ##
 	Y = list()
 	for(t in 1:P){
-		Y[[t]] = read.table(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/adjusted_expr1/chr", chr, "/", g, "/", Yt[t]), header=F)
+		Y[[t]] = read.table(paste0(Yt_path, '/', Yt[t]), header=F)
 	}
 	ssize = unlist(lapply(Y, nrow))
 	T_num = length(Yt)
 	
 	## genotype files ##
 	dose = read.table(dose_path, header=F)
-	for(j in 3:ncol(dose)){
+	for(j in 2:ncol(dose)){ ## if no 'dose' column
+#	for(j in 3:ncol(dose)){
 		dose[,j] = dose[,j] - mean(dose[,j])
 	}
-	
+	N = nrow(dose)
 	## covariance matrix ##
 	tmp = as.matrix(dose[,-(1:2)])
-	XX = t(tmp)%*%as.matrix(tmp)/450
+	XX = t(tmp)%*%as.matrix(tmp)/N
 	Xnorm = diag(XX)
 	remove(tmp); remove(XX)
 	sub_id = matrix(unlist(strsplit(dose[,1], "->")), ncol=2, byrow=T)[,1]
@@ -240,7 +251,7 @@ if(P){
 		}
 		sub_id_map[[t]] = tmp
 	}
-	cv_config = cv_helper(450, fold)
+	cv_config = cv_helper(N, fold)
 	cv_perm = cv_config$perm
 	cv_idx = cv_config$idx
 	

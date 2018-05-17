@@ -7,7 +7,7 @@ PERMIT is a penalized regression for multivariate-response data with missingness
 The repo also contains codes for replicating analysis in [UTMOST manuscript](https://www.biorxiv.org/content/early/2018/03/21/286013) and training cross-tissue gene expression prediction model with GTEx data as a demonstration.
 
 ## Tutorial
-1. Clone repo
+Clone repo
 ```bash
 git clone https://github.com/yiminghu/PERMIT.git
 ```
@@ -16,3 +16,20 @@ Compile the optim.c
 cd PERMIT
 R CMD SHLIB optim.c
 ```
+
+### Input format
+X: covariate matrix with each row being an observation and each column being a variable. The first column is the ID of each observation. No header line.
+Y_1, Y_2, ..., Y_P: response vectors, each file contains two columns: ID and response values. Due to the missingness in reponse matrix, each file may have different number of rows (number of observations).
+info: files contain column infomation of X, see examples/ for details
+
+### Usage
+```bash
+X=/path/to/covariate/file/
+Yt=/path/to/response/file/folder/
+info=/path/to/info/file/
+ntune=50 #number of grids for each tuning parameter
+output_path=/path/to/output/files/
+output_predix=test # prefix of output files
+Rscript --vanilla main.R ${X} ${info} ${Yt} ${ntune} ${output_prefix} ${output_path}
+```
+main.R will perform 5-fold cross-validation to select tuning parameters and generate estimation of the coefficient matrix.
