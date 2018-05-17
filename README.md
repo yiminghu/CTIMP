@@ -19,7 +19,9 @@ R CMD SHLIB optim.c
 
 ### Input format
 X: covariate matrix with each row being an observation and each column being a variable. The first column is the ID of each observation. No header line.
+
 Y_1, Y_2, ..., Y_P: response vectors, each file contains two columns: ID and response values. Due to the missingness in reponse matrix, each file may have different number of rows (number of observations).
+
 info: files contain column infomation of X, see examples/ for details
 
 ### Usage
