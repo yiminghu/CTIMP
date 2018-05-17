@@ -26,12 +26,14 @@ info: files contain column infomation of X, see examples/ for details
 
 ### Usage
 ```bash
-X=/path/to/covariate/file/
-Yt=/path/to/response/file/folder/
-info=/path/to/info/file/
+X=example/X.txt
+Y_folder=example/Y_folder/
+info=example/info.txt
 ntune=50 #number of grids for each tuning parameter
-output_path=/path/to/output/files/
+output_path=example/output/
+mkdir ${output_path}
 output_predix=test # prefix of output files
-Rscript --vanilla main.R ${X} ${info} ${Yt} ${ntune} ${output_prefix} ${output_path}
+
+Rscript --vanilla main.R ${X} ${info} ${Y_folder} ${ntune} ${output_prefix} ${output_path}
 ```
 main.R will perform 5-fold cross-validation to select tuning parameters and generate estimation of the coefficient matrix.
