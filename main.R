@@ -128,7 +128,7 @@ glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsiz
 	beta_j_lasso = rep(0, P)
 	tmp_XYj = 0
 	if(!is.loaded("wrapper")){
-		dyn.load("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/codes/adj_glasso.so")
+		dyn.load("optim.so")
 	}
 	for(i in 1:maxiter){
 		bgt = Sys.time()
@@ -172,7 +172,7 @@ glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, thet
 	beta_j_lasso = rep(0, P)
 	tmp_XYj = 0
 	if(!is.loaded("wrapper")){
-		dyn.load("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/codes/adj_glasso.so")
+		dyn.load("optim.so")
 	}
 	for(i in 1:maxiter){
 		res = .Call("wrapper", XX, XY, theta, M, P, beta_j_lasso, lambda1, lambda2, Xnorm)
