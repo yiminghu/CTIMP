@@ -1,12 +1,12 @@
 args = commandArgs(trailingOnly=TRUE)
 ### optimization part ###
+## pre-calculate some metrics for gradient
+## args
+## X: a list of covariate matrices corresponding to each response
+## Y: a list of response vectors
+## value
+## XY: a list of matrices X^TY for each response
 grad_prep <- function(X, Y){
-	## pre-calculate some metrics for gradient
-	## args
-	## X: a list of covariate matrices corresponding to each response
-	## Y: a list of response vectors
-	## value
-	## XY: a list of matrices X^TY for each response
 	ll = length(Y)
 	P = ncol(X[[1]])
 	XY = matrix(0,P,ll)
@@ -16,14 +16,14 @@ grad_prep <- function(X, Y){
 	XY
 }
 
+## helper function for generating cross-validation sets
+## args
+## N: number of sample size
+## fold: number of folds
+## values
+## perm: a permutation of 1 to N
+## idx: matrix of fold by 2 with first col being starting index and second col being ending index
 cv_helper <- function(N, fold){
-	## helper function for generating cross-validation sets
-	## args
-	## N: number of sample size
-	## fold: number of folds
-	## values
-	## perm: a permutation of 1 to N
-	## idx: matrix of fold by 2 with first col being starting index and second col being ending index
 	valid_num = floor(N/fold)
 	set.seed(123)
 	perm = sample(1:N, size = N)
@@ -32,30 +32,30 @@ cv_helper <- function(N, fold){
 	list(perm=perm, idx=cbind(idx1,idx2))
 }
 
+## get the minimum and maximum of lambda searched in cross-validation of an elastic net model
+## args
+## lst: an object returned by glmnet
+## value
+## min_lam: smallest lambda searched in glmnet cross-validation
+## max_lam: largest lambda searched in glmnet cross-validation
 minmax_lambda <- function(lst){
-	## get the minimum and maximum of lambda searched in cross-validation of an elastic net model
-	## args
-	## lst: an object returned by glmnet
-	## value
-	## min_lam: smallest lambda searched in glmnet cross-validation
-	## max_lam: largest lambda searched in glmnet cross-validation
 	max_lam = max(unlist(lapply(lst, function(x){max(x$lambda)})))
 	min_lam = min(unlist(lapply(lst, function(x){min(x$lambda)})))
 	c(min_lam, max_lam)
 }
 
+## evaluate the performance of elastic net on each response
+## args
+## lst: a list of glmnet object (fitted elastic net model for each response)
+## X_tune: a list of covariate matrices corresponding for each response (for tuning lambda)
+## Y_tune: a list of response vectors (for tuning lambda)
+## X_test: a list of covariate matrices corresponding for each response (for testing performance)
+## Y_test: a list of response vectors (for testing performance)
+## value
+## lam: best performing lambda (on (X_tune,Y_tune)) for each response
+## mse: list of matrices with each element being a matrix of predicted vs observed response
+## est: estimated effect sizes for each response (B matrix)
 elastic_net_mse <- function(lst, X_tune, Y_tune, X_test, Y_test){
-	## evaluate the performance of elastic net on each response
-	## args
-	## lst: a list of glmnet object (fitted elastic net model for each response)
-	## X_tune: a list of covariate matrices corresponding for each response (for tuning lambda)
-	## Y_tune: a list of response vectors (for tuning lambda)
-	## X_test: a list of covariate matrices corresponding for each response (for testing performance)
-	## Y_test: a list of response vectors (for testing performance)
-	## value
-	## lam: best performing lambda (on (X_tune,Y_tune)) for each response
-	## mse: list of matrices with each element being a matrix of predicted vs observed response
-	## est: estimated effect sizes for each response (B matrix)
 	P = length(lst)
 	M = ncol(X_tune[[1]])
 	lam_V = rep(0, P)
@@ -76,8 +76,9 @@ elastic_net_mse <- function(lst, X_tune, Y_tune, X_test, Y_test){
 	list(lam = lam_V, mse = test_res, est = test_beta)
 }
 
+## create a list of Y_true and Y_predicted for analysis
 multi_mse <- function(theta_est, X_test, Y_test){
-	answer = list()
+  answer = list()
 	P = ncol(theta_est)
 	for(t in 1:P){
 		predicted = X_test[[t]]%*%theta_est[,t]
@@ -86,6 +87,7 @@ multi_mse <- function(theta_est, X_test, Y_test){
 	answer
 }
 
+## average prediction metrics (rsq, mse, adjusted mse on validation sets)
 avg_perm <- function(mse_lst){
 	fd = length(mse_lst)
 	P = length(mse_lst[[1]])
@@ -98,10 +100,9 @@ avg_perm <- function(mse_lst){
 		}
 	}
 	cbind(apply(rsq, 2, mean), apply(mse, 2, mean), apply(adj_mse, 2, mean))
-
-	#list(rsq = apply(rsq, 2, mean), mse = apply(mse, 2, mean), adj_mse = apply(adj_mse, 2, mean))
 }
 
+## test Y_true ~ Y_predicted
 pred_test <- function(Y){
 	if(sum(Y[,2]==0)==nrow(Y)|var(Y[,2])==0){
 		return(2)
@@ -110,6 +111,7 @@ pred_test <- function(Y){
 	}
 }
 
+## group lasso on data with missing covariates, use validation data for stopping criterion
 glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsize = 1e-4, maxiter = 50, eps = 1e-3){
 	bgt = Sys.time()
 	M = nrow(XY)
@@ -134,16 +136,16 @@ glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsiz
 		bgt = Sys.time()
 		res = .Call("wrapper", XX, XY, theta, M, P, beta_j_lasso, lambda1, lambda2, Xnorm)
 		edt = Sys.time()
-		#print(edt-bgt)
+		print(edt-bgt)
 		new_objV1 = new_objV2 = rep(0,P)
 		for(t in 1:P){
 			new_objV1[t] = 1/2*mean((Y[[t]]-X[[t]]%*%theta[,t])^2)
 		}
-		#cat("Training error: ", new_objV1, '\n')
+		cat("Training error: ", new_objV1, '\n')
 		for(t in 1:P){
 			new_objV2[t] = 1/2*mean((Y1[[t]]-X1[[t]]%*%theta[,t])^2)
 		}
-		#cat("Testing error: ", new_objV2, '\n')
+		cat("Testing error: ", new_objV2, '\n')
 		if(mean(new_objV2) > mean(old_objV2)|mean(new_objV1) > mean(old_objV1)){
 			break
 		}else{
@@ -160,6 +162,7 @@ glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsiz
 	list(est = theta, avg_tune_err = mean(new_objV2), tune_err=new_objV2)
 }
 
+## simpler version of glasso, train model until converges 
 glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, theta, stepsize = 1e-4, maxiter = 50, eps = 1e-3){
 	M = nrow(XY)
 	P = length(X)
@@ -190,18 +193,13 @@ glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, thet
 	list(est = theta, avg_train_err = mean(new_objV1), train_err = new_objV1)
 }
 
-### command line input ###
-#chr = as.numeric(args[1]); k = as.numeric(args[2])
-#gene_id = args[3]
-#ntune = as.numeric(args[4])
-#outdir = args[5]
+#----------------------- command line input ----------------------###
 ### data import ###
 options(stringsAsFactors=F)
 library(glmnet)
 library(foreach)
-#ntune = 100
-#glist = dir(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/cis_snp_by_gene/chr", chr));
-#g = glist[k];
+
+print(args)
 dose_path = args[1]
 info_path = args[2]
 Yt_path=args[3]
@@ -209,19 +207,25 @@ Yt = dir(args[3])
 ntune = as.numeric(args[4])
 gene_id = args[5]
 outdir = args[6]
-#dose_path = paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/cis_snp_by_gene/chr", chr, "/", g, "/", g, ".mach.dose")
-#info_path = paste0("/ysm-gpfs/pi/zhao/from_louise/jw2372/GTEX/cis_snp_by_gene/chr", chr, "/", g, "/", g, ".mach.info")
-#Yt = dir(paste0("/ysm-gpfs/pi/zhao/from_louise/yh367/GTEX/adjusted_expr1/chr", chr, "/", g, "/"))
+sprintf("path to feature matrix %s; (id, ftr1, ftr2, ..., ftrM)", args[1])
+sprintf("path to info file: %s; ()", args[2])
+sprintf("path to response files: %s (one response one file, two cols: id, value)", args[3])
+sprintf("ntune = %s; (number of tuning parameters grid)", args[4])
+sprintf("prefix for all output files: %s", args[5])
+sprintf("prefix for all output files: %s", args[5])
+
 P = length(Yt)
 fold = 5
+sprintf("total number of responses = %s", P)
+sprinrf("number of cross-validation fold: %s", fold)
+sprintf("using %s fold-data for training, %s fold-data for tuning (validation data) 
+        and %s fold-data for evaluating performance (test data)", fold - 2, 1, 1)
+
 if(P){
 	dir.create(outdir, showWarnings = FALSE)
-#	dir.create(paste0(outdir, "/", gene_id), showWarnings = FALSE)
 	setwd(outdir)
-#	dir.create(paste0(outdir, "/chr", chr), showWarnings = FALSE)
-#	dir.create(paste0(outdir, "/chr", chr, "/", gene_id), showWarnings = FALSE)
-#	setwd(paste0(outdir, "/chr", chr, "/", gene_id))
-	## expr files ##
+  #-------------------------- load response files ---------------------------#
+  # each response corresponds to a single file with two columns: id and value #
 	Y = list()
 	for(t in 1:P){
 		Y[[t]] = read.table(paste0(Yt_path, '/', Yt[t]), header=F)
@@ -232,7 +236,6 @@ if(P){
 	## genotype files ##
 	dose = read.table(dose_path, header=F)
 	for(j in 2:ncol(dose)){ ## if no 'dose' column
-#	for(j in 3:ncol(dose)){
 		dose[,j] = dose[,j] - mean(dose[,j])
 	}
 	N = nrow(dose)
@@ -241,7 +244,9 @@ if(P){
 	XX = t(tmp)%*%as.matrix(tmp)/N
 	Xnorm = diag(XX)
 	remove(tmp); remove(XX)
-	sub_id = matrix(unlist(strsplit(dose[,1], "->")), ncol=2, byrow=T)[,1]
+  # gtex dosage file has subject_id->sample_id format
+	# sub_id = matrix(unlist(strsplit(dose[,1], "->")), ncol=2, byrow=T)[,1] 
+  sub_id = dose[, 1]
 	M = ncol(dose) - 2
 	sub_id_map = list()
 	for(t in 1:T_num){
@@ -376,7 +381,7 @@ if(P){
 		edt = Sys.time()
 		print(edt-bgt)
 	}
-	save(single_res_test, single_lam, single_theta_est, multi_res_test, multi_lam, multi_theta_est, res_tune, rec_lamv, file = paste0('chr', chr, '.', k, '.', gene_id, ".RData"))
+	save(single_res_test, single_lam, single_theta_est, multi_res_test, multi_lam, multi_theta_est, res_tune, rec_lamv, file = paste0(gene_id, ".RData"))
 	#res_single = avg_perm(single_res_test)
 	#res_multi = avg_perm(multi_res_test)
 	#cat("Elastic net average testing error (all): ", apply(res_single, 2, mean), '\n')

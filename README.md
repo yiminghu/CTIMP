@@ -13,16 +13,19 @@ git clone https://github.com/yiminghu/CTIMP.git
 ```
 Compile the optim.c
 ```bash
-cd PERMIT
+cd CTIMP
 R CMD SHLIB optim.c
 ```
 
 ### Input format
-X: covariate matrix with each row being an observation and each column being a variable. The first column is the ID of each observation. No header line.
+feature file (e.g. `example/X.txt`): covariate matrix with each row being an observation and each column being a variable. The first column is the ID of each observation. No header line.
+```
+id1 ftr1 ftr2 ... ftrM
+```
 
-Y_1, Y_2, ..., Y_P: response vectors, each file contains two columns: ID and response values. Due to the missingness in reponse matrix, each file may have different number of rows (number of observations).
+response file (e.g. `example/Y*.txt`): one file for one response, each file contains two columns: ID and response values. Due to the missingness in reponse matrix, each file may have different number of rows (number of observations).
 
-info: files contain column infomation of X, see example/ for details
+info file: files contain column infomation of X, i.e. names of features, see example/ for details
 
 ### Usage
 ```bash
@@ -32,7 +35,7 @@ info=example/info.txt
 ntune=50 #number of grids for each tuning parameter
 output_path=example/output/
 mkdir ${output_path}
-output_predix=test # prefix of output files
+output_prefix=test # prefix of output files
 
 Rscript --vanilla main.R ${X} ${info} ${Y_folder} ${ntune} ${output_prefix} ${output_path}
 ```
