@@ -112,8 +112,8 @@ pred_test <- function(Y){
 }
 
 ## group lasso on data with missing covariates, use validation data for stopping criterion
-glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsize = 1e-4, maxiter = 50, eps = 1e-3){
-	bgt = Sys.time()
+glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsize = 1e-4, maxiter = 50, eps = 1e-3, verbose = FALSE){
+	Bgt = Sys.time()
 	M = nrow(XY)
 	P = length(X)
 	NN = unlist(lapply(X, nrow))
@@ -121,31 +121,35 @@ glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsiz
 	for(t in 1:P){
 		old_objV1[t] = 1/2*mean((Y[[t]]-X[[t]]%*%theta[,t])^2)
 	}
-	#cat("Training error: ", old_objV1, '\n')	
+  if (verbose) {
+    cat("Training error: ", old_objV1, '\n')	
+  }
 	old_objV2 = rep(0,P)
 	for(t in 1:P){
 		old_objV2[t] = 1/2*mean((Y1[[t]]-X1[[t]]%*%theta[,t])^2)
 	}
-	#cat("Testing error: ", old_objV2, '\n')
+	if (verbose) {
+    cat("Testing error: ", old_objV2, '\n')
+  }
 	beta_j_lasso = rep(0, P)
 	tmp_XYj = 0
 	if(!is.loaded("wrapper")){
-		dyn.load("optim.so")
+		dyn.load("optim.so") # change this to the abs path to optim.so
 	}
 	for(i in 1:maxiter){
 		bgt = Sys.time()
 		res = .Call("wrapper", XX, XY, theta, M, P, beta_j_lasso, lambda1, lambda2, Xnorm)
 		edt = Sys.time()
-		print(edt-bgt)
+		
 		new_objV1 = new_objV2 = rep(0,P)
 		for(t in 1:P){
 			new_objV1[t] = 1/2*mean((Y[[t]]-X[[t]]%*%theta[,t])^2)
 		}
-		cat("Training error: ", new_objV1, '\n')
+		if (verbose) {cat("Training error: ", new_objV1, '\n')}
 		for(t in 1:P){
 			new_objV2[t] = 1/2*mean((Y1[[t]]-X1[[t]]%*%theta[,t])^2)
 		}
-		cat("Testing error: ", new_objV2, '\n')
+		if (verbose) {cat("Testing error: ", new_objV2, '\n')}
 		if(mean(new_objV2) > mean(old_objV2)|mean(new_objV1) > mean(old_objV1)){
 			break
 		}else{
@@ -157,13 +161,14 @@ glasso <- function(X, Y, X1, Y1, XX, XY, Xnorm, lambda1, lambda2, theta, stepsiz
 			old_objV1 = new_objV1
 		}
 	}
-	#edt = Sys.time()
-	#print(edt-bgt)
+	Edt = Sys.time()
+	cat("total training time: ", Edt-Bgt, "\n")
 	list(est = theta, avg_tune_err = mean(new_objV2), tune_err=new_objV2)
 }
 
 ## simpler version of glasso, train model until converges 
-glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, theta, stepsize = 1e-4, maxiter = 50, eps = 1e-3){
+glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, theta, stepsize = 1e-4, maxiter = 50, eps = 1e-3, verbose = FALSE){
+  cat("running glasso_no_early_stopping\n")
 	M = nrow(XY)
 	P = length(X)
 	NN = unlist(lapply(X, nrow))
@@ -171,7 +176,7 @@ glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, thet
 	for(t in 1:P){
 		old_objV1[t] = 1/2*mean((Y[[t]]-X[[t]]%*%theta[,t])^2)
 	}
-	cat("Training error: ", mean(old_objV1), '\n')
+	if (verbose) {cat("Training error: ", mean(old_objV1), '\n')}
 	beta_j_lasso = rep(0, P)
 	tmp_XYj = 0
 	if(!is.loaded("wrapper")){
@@ -183,7 +188,7 @@ glasso_no_early_stopping <- function(X, Y, XX, XY, Xnorm, lambda1, lambda2, thet
 		for(t in 1:P){
 			new_objV1[t] = 1/2*mean((Y[[t]]-X[[t]]%*%theta[,t])^2)
 		}
-		cat("Training error: ", mean(new_objV1), '\n')
+		if (verbose) {cat("Training error: ", mean(new_objV1), '\n')}
 		if(max(abs(new_objV1-old_objV1)) < eps|mean(new_objV1) > mean(old_objV1)){
 			break
 		}else{
@@ -199,32 +204,38 @@ options(stringsAsFactors=F)
 library(glmnet)
 library(foreach)
 
-print(args)
-dose_path = args[1]
-info_path = args[2]
-Yt_path=args[3]
+dose_path = normalizePath(args[1])
+info_path = normalizePath(args[2])
+Yt_path = normalizePath(args[3])
 Yt = dir(args[3])
 ntune = as.numeric(args[4])
 gene_id = args[5]
-outdir = args[6]
-sprintf("path to feature matrix %s; (id, ftr1, ftr2, ..., ftrM)", args[1])
-sprintf("path to info file: %s; ()", args[2])
-sprintf("path to response files: %s (one response one file, two cols: id, value)", args[3])
-sprintf("ntune = %s; (number of tuning parameters grid)", args[4])
-sprintf("prefix for all output files: %s", args[5])
-sprintf("prefix for all output files: %s", args[5])
+outdir = normalizePath(args[6])
+if (is.na(args[7])) {
+  if_verbose = FALSE
+} else {
+  if_verbose = as.logical(args[7])
+}
+sprintf("path to feature matrix %s; (id, ftr1, ftr2, ..., ftrM)", dose_path)
+sprintf("path to info file: %s; ()", info_path)
+sprintf("path to response files: %s (one response one file, two cols: id, value)", Yt_path)
+sprintf("ntune = %s; (number of tuning parameters grid)", ntune)
+sprintf("prefix for all output files: %s", gene_id)
+sprintf("output dir: %s", outdir)
+sprintf("print detailed log info: %s", if_verbose)
 
 P = length(Yt)
 fold = 5
 sprintf("total number of responses = %s", P)
-sprinrf("number of cross-validation fold: %s", fold)
+sprintf("number of cross-validation fold: %s", fold)
 sprintf("using %s fold-data for training, %s fold-data for tuning (validation data) 
         and %s fold-data for evaluating performance (test data)", fold - 2, 1, 1)
 
 if(P){
 	dir.create(outdir, showWarnings = FALSE)
-	setwd(outdir)
+	#setwd(outdir)
   #-------------------------- load response files ---------------------------#
+  cat("loading response files ...\n")
   # each response corresponds to a single file with two columns: id and value #
 	Y = list()
 	for(t in 1:P){
@@ -232,27 +243,39 @@ if(P){
 	}
 	ssize = unlist(lapply(Y, nrow))
 	T_num = length(Yt)
-	
-	## genotype files ##
-	dose = read.table(dose_path, header=F)
-	for(j in 2:ncol(dose)){ ## if no 'dose' column
+  cat("print head of one Yt:\n")
+  print(head(Y[[1]]))
+
+	#-------------------------- load feature files  ---------------------------#
+  # i.e. dosage files for GTEx data
+  cat("loading X matrix ...\n")
+	dose = read.table(dose_path, header = F)
+  cat("print dim of one Xt:\n")
+  print(dim(dose))
+  cat("centering each column of X\n")
+	for(j in 2:ncol(dose)){ 
+    ## GTEx dosage file has an extra 'dose' column, change 2 to 3 if you load GTEx
+    ## dosage file for X
 		dose[,j] = dose[,j] - mean(dose[,j])
 	}
 	N = nrow(dose)
-	## covariance matrix ##
-	tmp = as.matrix(dose[,-(1:2)])
+	#-------------------------- computing covariance matrix ---------------------------#
+	cat("computing covariance matrix using all X ...\n")
+  tmp = as.matrix(dose[ , -1])
 	XX = t(tmp)%*%as.matrix(tmp)/N
+  print(dim(XX))
 	Xnorm = diag(XX)
 	remove(tmp); remove(XX)
   # gtex dosage file has subject_id->sample_id format
 	# sub_id = matrix(unlist(strsplit(dose[,1], "->")), ncol=2, byrow=T)[,1] 
   sub_id = dose[, 1]
-	M = ncol(dose) - 2
+	M = ncol(dose) - 1
+  cat('M = ', M, '\n')
 	sub_id_map = list()
 	for(t in 1:T_num){
 		tmp = rep(0, nrow(Y[[t]]))
 		for(j in 1:length(tmp)){
-			tmp[j] = which(sub_id==Y[[t]][j,1])
+			tmp[j] = which(sub_id == Y[[t]][j,1])
 		}
 		sub_id_map[[t]] = tmp
 	}
@@ -271,8 +294,10 @@ if(P){
 	multi_res_test2 = list()
 	multi_lam2 = array(0, dim=c(fold, P, 2))
 	multi_theta_est2 = list()
-
-	res_tune = list()
+  
+  #-------------------------- dividing cross-validation sets ---------------------------#
+	cat('dividing data into train-validate-test sets\n')
+  res_tune = list()
 	rec_lamv = matrix(0, fold, ntune)
 	for(f in 1:fold){
 		bgt = Sys.time()
@@ -294,17 +319,19 @@ if(P){
 			Y_tuning_tmp = (sub_id_map[[t]]%in%tuning_index)
 			X_test_tmp = sub_id_map[[t]][(sub_id_map[[t]]%in%test_index)]
 			Y_test_tmp = (sub_id_map[[t]]%in%test_index)
-			X_train[[t]] = apply(as.matrix(dose[X_train_tmp,-c(1,2)]),2,as.numeric)
+			X_train[[t]] = apply(as.matrix(dose[X_train_tmp,-c(1)]),2,as.numeric)
 			Y_train[[t]] = Y[[t]][Y_train_tmp, 2]
-			X_tune[[t]] = apply(as.matrix(dose[X_tuning_tmp,-c(1,2)]),2,as.numeric)
+			X_tune[[t]] = apply(as.matrix(dose[X_tuning_tmp,-c(1)]),2,as.numeric)
 			Y_tune[[t]] = Y[[t]][Y_tuning_tmp, 2]
-			X_test[[t]] = apply(as.matrix(dose[X_test_tmp,-c(1,2)]),2,as.numeric)
+			X_test[[t]] = apply(as.matrix(dose[X_test_tmp,-c(1)]),2,as.numeric)
 			Y_test[[t]] = Y[[t]][Y_test_tmp, 2]
 		}
 		
-		## model training ##	
+		#------------- get initial est by elasticNet on single tissue --------------#
+    ## model training ##	
 		## train elastic net and used average lambda as tuning parameters ##
-		single_initial_est = matrix(0, ncol(X_train[[1]]), T_num)
+		cat("training elastic net on single response to get initial est\n")
+    single_initial_est = matrix(0, ncol(X_train[[1]]), T_num)
 		single_summary = list()
 		for(t in 1:T_num){
 			tt = cv.glmnet(X_train[[t]], Y_train[[t]], alpha = 0.5, nfolds = 5)
@@ -336,7 +363,9 @@ if(P){
 		initial_numeric = as.numeric(single_initial_est)
 		remove(single_summary); remove(single_initial_est);
 	
-		## preparation
+		#-------------------------- train - validate - test ---------------------------#
+    cat('starting train-validate-test\n')
+    ## preparation
 		XY = grad_prep(X_train, Y_train)
 		XX_train = lapply(X_train, function(x){t(x)%*%x/nrow(x)})
 		spsz = unlist(lapply(X_train,nrow))
@@ -347,10 +376,10 @@ if(P){
 		for(lam1 in 1:ntune){
 			for(lam2 in 1:ntune){
 				single_est = matrix(initial_numeric, M, P)
-				ans = glasso(X=X_train, Y=Y_train, X1=X_tune, Y1=Y_tune, XX=XX_train, XY=XY, Xnorm=Xnorm, lambda1=lam_V[lam1]/spsz, lambda2=lam_V[lam2], theta=single_est)
+				ans = glasso(X=X_train, Y=Y_train, X1=X_tune, Y1=Y_tune, XX=XX_train, XY=XY, Xnorm=Xnorm, lambda1=lam_V[lam1]/spsz, lambda2=lam_V[lam2], theta=single_est, verbose = if_verbose)
 				if(sum(ans$est!=0)>0){
 					res_tune[[f]][lam1,lam2, ] = ans$tune_err
-					cat("lambda1=",lam_V[lam1], "; lambda2=", lam_V[lam2], "; avg tune err=", ans$avg_tune_err, '\n')
+					if (if_verbose) { cat("lambda1=",lam_V[lam1], "; lambda2=", lam_V[lam2], "; avg tune err=", ans$avg_tune_err, '\n') }
 					remove(single_est); remove(ans);
 				}else{
 					remove(single_est); remove(ans);
@@ -358,30 +387,34 @@ if(P){
 				}			
 			}
 		}
+
+    #-------------------------- save results on test set for evaluation ---------------------------#
+    cat("saving cross-validation results for evaluation and analysis\n")
 		avg_tune_res = apply(res_tune[[f]], c(1,2), mean)
 		best.lam = which(avg_tune_res == min(avg_tune_res[avg_tune_res>=0]), arr.ind = TRUE)[1,]
 		single_est = matrix(initial_numeric, M, P)
-		ans = glasso(X=X_train, Y=Y_train, X1=X_tune, Y1=Y_tune, XX=XX_train, XY=XY, Xnorm=Xnorm, lambda1=lam_V[best.lam[1]]/spsz, lambda2=lam_V[best.lam[2]], theta=single_est)
+		ans = glasso(X=X_train, Y=Y_train, X1=X_tune, Y1=Y_tune, XX=XX_train, XY=XY, Xnorm=Xnorm, lambda1=lam_V[best.lam[1]]/spsz, lambda2=lam_V[best.lam[2]], theta=single_est, verbose = if_verbose)
 		multi_res_test[[f]] = multi_mse(ans$est, X_test, Y_test)
 		multi_lam[f,] = lam_V[best.lam]
 		multi_theta_est[[f]] = ans$est
 		remove(single_est); remove(ans);
-		## tune by each tissue ##
+		
+    ## tune by each tissue ##
 		#tmp_est = matrix(0, M, P)
 		#for(t in 1:P){
 		#	sig_tune_res = res_tune[[f]][,,t]
 		#	best.lam.single = which(sig_tune_res == min(sig_tune_res[sig_tune_res>=0]), arr.ind = TRUE)[1,]
 		#	multi_lam2[f,t,] = lam_V[best.lam.single]
-		#	ans = glasso(X=X_train, Y=Y_train, X1=X_tune, Y1=Y_tune, XX=XX_train, XY=XY, Xnorm=Xnorm, lambda1=lam_V[best.lam.single[1]]/sig_norm, lambda2=lam_V[best.lam.single[2]]/sig_norm, theta=matrix(initial_numeric, M, P))
+		#	ans = glasso(X=X_train, Y=Y_train, X1=X_tune, Y1=Y_tune, XX=XX_train, XY=XY, Xnorm=Xnorm, lambda1=lam_V[best.lam.single[1]]/sig_norm, lambda2=lam_V[best.lam.single[2]]/sig_norm, theta=matrix(initial_numeric, M, P), verbose = if_verbose)
 		#	tmp_est[,t] = ans$est[,t]
 		#	remove(ans);
 		#}
 		#multi_res_test2[[f]] = multi_mse(tmp_est, X_test, Y_test)
 		#multi_theta_est2[[f]] = tmp_est
 		edt = Sys.time()
-		print(edt-bgt)
+		cat("cross-validation time for fold ", f, " is ", edt-bgt, '\n')
 	}
-	save(single_res_test, single_lam, single_theta_est, multi_res_test, multi_lam, multi_theta_est, res_tune, rec_lamv, file = paste0(gene_id, ".RData"))
+	save(single_res_test, single_lam, single_theta_est, multi_res_test, multi_lam, multi_theta_est, res_tune, rec_lamv, file = paste0(outdir, '/', gene_id, ".cv.evaluation.RData"))
 	#res_single = avg_perm(single_res_test)
 	#res_multi = avg_perm(multi_res_test)
 	#cat("Elastic net average testing error (all): ", apply(res_single, 2, mean), '\n')
@@ -391,12 +424,14 @@ if(P){
 	#cat("Elastic net average testing error (non-zero): ", apply(res_single[!is.na(res_multi[,1]),], 2, mean), '\n')
 	#cat("glasso averge testing error (non-zero): ", apply(res_multi[!is.na(res_multi[,1]),], 2, mean), '\n')
 
+  #------------ use tuning parameter chosen above to train model on entire dataset -------------#
 	## generate an estimate with whole data ##
+  cat('training a model on entire data with parameters chosen from cv\n')
 	X_all = list()
 	Y_all = list()
 	for(t in 1:T_num){
 		X_all_tmp = sub_id_map[[t]]
-		X_all[[t]] = apply(as.matrix(dose[X_all_tmp,-c(1,2)]),2,as.numeric)
+		X_all[[t]] = apply(as.matrix(dose[X_all_tmp,-c(1)]),2,as.numeric)
 		Y_all[[t]] = Y[[t]][,2]
 	}
 	# initial values 
@@ -423,16 +458,17 @@ if(P){
 	XX_all = lapply(X_all, function(x){t(x)%*%x/nrow(x)})
 	tmp_res = rep(0, fold)
 	for(f in 1:fold){
-		ans = glasso_no_early_stopping(X=X_all, Y=Y_all, XX=XX_all, XY=XY, Xnorm=Xnorm, lambda1=multi_lam[f,1]/spsz, lambda2=multi_lam[f,2], theta=matrix(initial_numeric,M,P))
+		ans = glasso_no_early_stopping(X=X_all, Y=Y_all, XX=XX_all, XY=XY, Xnorm=Xnorm, lambda1=multi_lam[f,1]/spsz, lambda2=multi_lam[f,2], theta=matrix(initial_numeric,M,P), verbose = if_verbose)
 		tmp_res[f] = ans$avg_train_err
 	}
 	final.lam = multi_lam[which.min(tmp_res),]
-	ans = glasso_no_early_stopping(X=X_all, Y=Y_all, XX=XX_all, XY=XY, Xnorm=Xnorm, lambda1=final.lam[1]/spsz, lambda2=final.lam[2], theta=matrix(initial_numeric,M,P))
+	ans = glasso_no_early_stopping(X=X_all, Y=Y_all, XX=XX_all, XY=XY, Xnorm=Xnorm, lambda1=final.lam[1]/spsz, lambda2=final.lam[2], theta=matrix(initial_numeric,M,P), verbose = if_verbose)
 	info = read.table(info_path, header=T, sep='\t')
 	downstream_est = data.frame(info[,1:3], ans$est)
 	multi_all_res = multi_mse(ans$est, X_all, Y_all)
 	single_all_res = multi_mse(single_initial_est, X_all, Y_all)
-	write.table(downstream_est, paste0(gene_id, ".est"), quote=F, row.names=F, col.names=c("SNP", "REF.0.", "ALT.1.", Yt))
+  cat('writing final estimates\n')
+	write.table(downstream_est, paste0(outdir, '/', gene_id, ".est"), quote = F, row.names = F, col.names = c("SNP", "REF.0.", "ALT.1.", Yt))
 
 	#tmp_res = matrix(0, fold, P)
 	#for(f in 1:fold){
@@ -452,6 +488,8 @@ if(P){
 	#write.table(downstream_est2, paste0(gene_id, "2.est"), quote=F, row.names=F, col.names=c("SNP", "REF.0.", "ALT.1.", Yt))
 
 	#multi_all_res2 = multi_mse(tmp_est2, X_all, Y_all)
-	save(multi_all_res, single_all_res, final.lam, ans, file=paste0("prediction_on_all_data.RData"))
+  cat('saving the prediction on all data for future analysis\n')
+	save(multi_all_res, single_all_res, final.lam, ans, file = paste0(outdir, '/', gene_id, ".prediction_on_all_data.RData"))
+  cat('done!\n')
 }
 
