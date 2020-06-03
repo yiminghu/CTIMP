@@ -46,7 +46,6 @@ void inner_iter(SEXP R_XX, double* XY, double* theta, int M, int P, double* beta
 SEXP wrapper(SEXP R_XX, SEXP R_XY, SEXP R_theta, SEXP R_M, SEXP R_P, SEXP R_beta_j_lasso, SEXP R_lambda1, SEXP R_lambda2, SEXP R_Xnorm)
 {
 	SEXP answer;
-	double* ans;
 	double* XY;
 	double* theta;
 	double* beta_j_lasso;
