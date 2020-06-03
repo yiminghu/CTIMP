@@ -6,6 +6,9 @@ CTIMP uses a multivariate-response penalized regression to predict cross-tissue 
 
 The repo also contains codes for replicating analysis in [UTMOST manuscript](https://www.biorxiv.org/content/early/2018/03/21/286013) and training cross-tissue gene expression prediction model with GTEx data as a demonstration.
 
+**If you use results generated from this software, please cite:**
+* Hu, et al. A statistical framework for cross-tissue transcriptome-wide association analysis, Nature Genetics, 2019.
+
 ## Tutorial
 Clone repo
 ```bash
