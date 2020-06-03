@@ -37,7 +37,7 @@ void inner_iter(SEXP R_XX, double* XY, double* theta, int M, int P, double* beta
 		bnorm = beta_j_norm(beta_j_lasso, P);
 		if(bnorm > 0){
 			for(int t=0; t<P; t++){
-				theta[t*M+j] = (1 - lambda2/bnorm)*beta_j_lasso[t]/Xnorm[j];
+				theta[t*M+j] = fmax(1 - lambda2/bnorm, 0)*beta_j_lasso[t]/Xnorm[j];
 			}
 		}
 	}
