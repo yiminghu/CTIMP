@@ -38,6 +38,8 @@ void inner_iter(SEXP R_XX, double* XY, double* theta, int M, int P, double* beta
 		if(bnorm > 0){
 			for(int t=0; t<P; t++){
 				theta[t*M+j] = fmax(1 - lambda2/bnorm, 0)*beta_j_lasso[t]/Xnorm[j];
+				//NB: the 'correct' formula should be (1 - lambda2/bnorm)*beta_j_lasso[t]/Xnorm[j];
+				// but we use ()+ instead to gain stability in practice
 			}
 		}
 	}
